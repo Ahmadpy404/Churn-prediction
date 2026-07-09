@@ -59,9 +59,7 @@ Follow these steps to run the project locally on your machine.
    ```bash
    python app.py
    ```
-
-5. **View the Dashboard**:
-   Open your browser and navigate to `http://127.0.0.1:5000`
+   *The application will automatically open your default web browser and navigate to the dashboard (`http://127.0.0.1:5000`).*
 
 ## 💡 How it Works
 
