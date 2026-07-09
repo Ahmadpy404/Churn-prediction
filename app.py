@@ -162,4 +162,11 @@ def predict():
         return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
+    import os
+    # Ensure it only opens the browser once (not in the reloader process)
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        import webbrowser
+        from threading import Timer
+        Timer(1.25, lambda: webbrowser.open('http://127.0.0.1:5000')).start()
+        
     app.run(debug=True, port=5000)
