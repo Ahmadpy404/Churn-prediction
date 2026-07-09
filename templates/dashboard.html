@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block header_title %}Overview Dashboard{% endblock %}
+
+{% block content %}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon total-users">
+            <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </div>
+        <div class="kpi-info">
+            <p class="kpi-label">Total Customers</p>
+            <h3 class="kpi-value">{{ kpi.total if kpi else 0 }}</h3>
+        </div>
+    </div>
+    
+    <div class="kpi-card">
+        <div class="kpi-icon churn-rate">
+            <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="24" width="24" xmlns="http://www.w3.org/2000/svg"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        </div>
+        <div class="kpi-info">
+            <p class="kpi-label">Overall Churn Rate</p>
+            <h3 class="kpi-value">{{ kpi.churn_rate if kpi else 0 }}%</h3>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon avg-tenure">
+            <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="24" width="24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <div class="kpi-info">
+            <p class="kpi-label">Avg. Tenure (Months)</p>
+            <h3 class="kpi-value">{{ kpi.avg_tenure if kpi else 0 }}</h3>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon revenue">
+            <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="24" width="24" xmlns="http://www.w3.org/2000/svg"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        </div>
+        <div class="kpi-info">
+            <p class="kpi-label">Avg. Monthly Charges</p>
+            <h3 class="kpi-value">${{ kpi.avg_monthly if kpi else 0 }}</h3>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Churn by Contract Type</h3>
+        <div class="chart-container">
+            <canvas id="contractChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card">
+        <h3>Churn by Gender</h3>
+        <div class="chart-container">
+            <canvas id="genderChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card full-width">
+        <h3>Churn by Tenure</h3>
+        <div class="chart-container">
+            <canvas id="tenureChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Chart Defaults
+    Chart.defaults.color = '#a0aec0';
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+
+    // Fetch data and render charts
+    fetch("{{ url_for('chart_data') }}")
+        .then(response => response.json())
+        .then(data => {
+            if (Object.keys(data).length === 0) return;
+
+            // 1. Contract Chart (Bar)
+            const contractCtx = document.getElementById('contractChart').getContext('2d');
+            new Chart(contractCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.contract.labels,
+                    datasets: [
+                        {
+                            label: 'Retained (No)',
+                            data: data.contract.no,
+                            backgroundColor: '#4ade80',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Churned (Yes)',
+                            data: data.contract.yes,
+                            backgroundColor: '#f87171',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+
+            // 2. Gender Chart (Doughnut)
+            // Combine Yes/No for both genders to simplify
+            const genderCtx = document.getElementById('genderChart').getContext('2d');
+            new Chart(genderCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Female Churned', 'Female Retained', 'Male Churned', 'Male Retained'],
+                    datasets: [{
+                        data: [
+                            data.gender.yes[0], data.gender.no[0], 
+                            data.gender.yes[1], data.gender.no[1]
+                        ],
+                        backgroundColor: ['#fca5a5', '#86efac', '#f87171', '#4ade80'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } },
+                    cutout: '70%'
+                }
+            });
+
+            // 3. Tenure Chart (Line/Area)
+            const tenureCtx = document.getElementById('tenureChart').getContext('2d');
+            new Chart(tenureCtx, {
+                type: 'line',
+                data: {
+                    labels: data.tenure.labels,
+                    datasets: [
+                        {
+                            label: 'Churned',
+                            data: data.tenure.yes,
+                            borderColor: '#f87171',
+                            backgroundColor: 'rgba(248, 113, 113, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Retained',
+                            data: data.tenure.no,
+                            borderColor: '#4ade80',
+                            backgroundColor: 'rgba(74, 222, 128, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        });
+</script>
+{% endblock %}
